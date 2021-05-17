@@ -50,7 +50,7 @@ class User extends Authenticatable
      */
     public function loadRelationshipCounts()
     {
-        $this->loadCount(['microposts', 'followings', 'followers']);
+        $this->loadCount(['microposts', 'followings', 'followers','favorites']);
     }
     /**
      * このユーザがフォロー中のユーザ。（ Userモデルとの関係を定義）
@@ -137,5 +137,68 @@ class User extends Authenticatable
         // それらのユーザが所有する投稿に絞り込む
         return Micropost::whereIn('user_id', $userIds);
     }
+    /**
+     * このユーザがお気に入り追加している投稿。（Micropostモデルとの関係を定義)
+     */
+    public function favorites()
+    {
+        return $this->belongsToMany(Micropost::class, 'favorites', 'user_id', 'microposts_id')->withTimestamps();
+    }
+    /**
+     * 指定された$micropostIdの投稿をこのユーザがすでにお気に入り追加しているかどうか調べる。すでにお気に入り追加しているならtrueを返す。
+     *
+     * @param  int  $micropostId
+     * @return bool
+     */
+    public function in_favorites($micropostId)
+    {
+        // お気に入り投稿の中に $micropostIdのものが存在するか
+        return $this->favorites()->where('microposts_id', $micropostId)->exists();
+    }
+
+    /**
+     * $micropostIdで指定された投稿をお気に入り追加する。
+     *
+     * @param  int  $micropostId
+     * @return bool
+     */
+    public function favorite($micropostId)
+    {
+        // すでにお気に入り追加しているかどうか
+        $exist = $this->in_favorites($micropostId);
+
+        if ($exist) {
+            // すでにお気に入り追加している場合
+            return false; //何もしない
+        } else {
+            // そうでなければお気に入り追加する
+            $this->favorites()->attach($micropostId); //自分自身がお気に入り追加している投稿に$micropostIdの投稿を追加する
+            return true;
+        }
+    }
+    /**
+     * $micropostIdで指定された投稿のお気に入りをはずず。
+     *
+     * @param  int  $micropostId
+     * @return bool
+     */
+    public function unfavorite($micropostId)
+    {
+        // すでにお気に入り追加しているかどうか
+        $exist = $this->in_favorites($micropostId);
+        
+        if ($exist) {
+            // すでにお気に入り追加している場合
+            $this->favorites()->detach($micropostId);//自分自身がお気に入り追加している投稿から$micropostIdの投稿を削除する
+            return true;
+        } else {
+            // そうでなければ何もしない
+            return false;
+        }
+    }
+
 }
+    
+    
+
 
